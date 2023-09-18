@@ -1,0 +1,26 @@
+Rule for sudoku input:
+* NUMBER is fixed value
+* PERIOD is empty 
+note that Only NUMBER ONE to NINE
+and PERIOD are parsed, number 0 (ZERO)
+and other character is ignored
+
+1 . .   2 . .   3 . .
+2 . .   3 . .   4 . .
+3 . .   4 . .   5 . .
+                     
+4 . .   5 . .   6 . .
+. . .   . . .   . . .
+. . 3   . . 4   . . 5
+                     
+. . 4   . . 5   . . 6
+. . 5   . . 6   . . 7
+. . 6   . . 7   . . 8
+
+The code will stop reading
+and solve the sudoku after
+get all EIGHTY ONE element
+
+097413677532
+so this text and above number
+is ignored

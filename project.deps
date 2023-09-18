@@ -1,0 +1,4 @@
+deps_src=src
+deps_out=SUDOKU_OUT
+deps_alias=SUDOKU_SRC
+COMMON_HEAD=common/include
