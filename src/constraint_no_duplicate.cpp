@@ -1,24 +1,21 @@
 #include "constraint_no_duplicate.hpp"
 
-#include "list.tcc"
-
 ConstraintNoDuplicate::ConstraintNoDuplicate()
 {}
 
 void ConstraintNoDuplicate::addNeigbour(int index)
 {
-    for(int i = 0; i < neighbour.size(); i++) {
-        if(index == neighbour[i]) return;
+    for(auto neighbour : neighbours) {
+        if(index == neighbour) return;
     }
-    neighbour.push(index);
+    neighbours.push_back(index);
 }
 
 SudokuResult ConstraintNoDuplicate::onCollapsed(Sudoku *sudoku, int collapsedIndex, int value, SudokuNote note)
 {
     bool changed = false;
     SudokuNote inverse = ~note;
-    for(int i = 0; i < neighbour.size(); i++) {
-        int index = neighbour[i];
+    for(auto index : neighbours) {
         if(sudoku->isIgnored(index)) continue;
         int oldValue = sudoku->note[index];
         if(oldValue & SudokuNoteOk) continue;

@@ -1,6 +1,8 @@
 #ifndef CONSTRAINT_INCREASE_HPP
 #define CONSTRAINT_INCREASE_HPP
 
+#include <vector>
+
 #include "sudoku.hpp"
 
 typedef struct IndexDiff
@@ -23,7 +25,7 @@ public:
 	SudokuResult onCollapsed(Sudoku *, int index, int value, SudokuNote note) override;
 
 private:
-    List<IndexDiff> direction;
+    std::vector<IndexDiff> direction;
     // int maxDiff;
 };
 

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "list.hpp"
-#include "sudoku.hpp"
+#include <vector>
 
+#include "sudoku.hpp"
 #include "group_generator.hpp"
 
 class ConstraintNoDuplicate : public Sudoku::Constraint
@@ -24,5 +24,5 @@ public:
 
 private:
     ConstraintNoDuplicate();
-    List<int> neighbour;
+    std::vector<int> neighbours;
 };

@@ -1,11 +1,8 @@
 #ifndef SUDOKU_HPP
 #define SUDOKU_HPP
 
-#include <stdio.h>
-
-#include "list.hpp"
-
-// #define HAS_HISTORY
+#include <iostream>
+#include <vector>
 
 #define SudokuNote1 1
 #define SudokuNote2 2
@@ -57,33 +54,35 @@ public:
 
 	void addConstraint(int index, Constraint *eventListener);
 
-	static void solve(Sudoku *, List<Sudoku*> &dst, int limit = 0x7fffffff);
-	static void printSpecialSolution(List<Sudoku*> &solutions);
-	static int countSolution(Sudoku *, int limit = 0x7fffffff);
+	static void solve(Sudoku *, std::vector<Sudoku*> &dst, std::size_t limit = 0x7fffffff);
+	static void printSpecialSolution(std::vector<Sudoku*> &solutions, std::ostream &out = std::cout);
+	static int countSolution(Sudoku *, std::size_t limit = 0x7fffffff);
 
-    void print(const char *fixedNoteFormat = "\e[3m%c\e[23m", int marked = -1);
-	void printRemaining();
+    void print(std::ostream &out, const char *fixedNoteFormat = "\e[3m%c\e[23m", int marked = -1);
+	void printRemaining(std::ostream &dst);
+	std::string bar();
+
 	int getSize();
 	int getDimension();
 	void ignore(int index);
 	bool isIgnored(int index);
-	bool read(FILE *file);
-	bool read(const char *path);
+
+	friend bool operator>>(std::istream &src, Sudoku &dst);
 
     static int note2value(SudokuNote);
     static SudokuNote value2note(int);
 	static char note2char(SudokuNote);
 	static int noteGetRemaining(SudokuNote);
-	static void printAvailable(SudokuNote);
+	static void printAvailable(SudokuNote, std::ostream &out=std::cout);
 
     SudokuNote *note;
 #ifdef HAS_HISTORY
-	List<CollapseHistory> history;
+	std::vector<CollapseHistory> history;
 	void printHistory();
 #endif
 
 private:
-	List<Constraint*> *constraints;
+	std::vector<Constraint*> *constraints;
 	bool *ignored;
 	bool isDuplicate;
 	int dim;

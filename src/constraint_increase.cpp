@@ -1,17 +1,12 @@
 #include "constraint_increase.hpp"
 
-#include <stdio.h>
-
-#include "list.tcc"
-
 ConstraintIncrease::ConstraintIncrease()
 {
 }
 
 ConstraintIncrease::ConstraintIncrease(ConstraintIncrease *src, int diff)
 {
-    for(int i = 0; i < src->direction.size(); i++) {
-        auto &item = src->direction[i];
+    for(auto &item : src->direction) {
         add(item.index, item.diff - diff);
     }
 }
@@ -19,24 +14,24 @@ ConstraintIncrease::ConstraintIncrease(ConstraintIncrease *src, int diff)
 void ConstraintIncrease::add(int index, int diff)
 {
     IndexDiff item = {index, diff};
-    direction.push(item);
+    direction.push_back(item);
 }
 
 void ConstraintIncrease::apply(Sudoku *dst)
 {
-    for(int i = 0; i < direction.size(); i++) {
-        if(direction[i].diff == 0) {
-            dst->addConstraint(direction[i].index, this);
+    for(auto &dir : direction) {
+        if(dir.diff == 0) {
+            dst->addConstraint(dir.index, this);
         } else {
-            dst->addConstraint(direction[i].index, new ConstraintIncrease(this, direction[i].diff));
+            dst->addConstraint(dir.index, new ConstraintIncrease(this, dir.diff));
         }
     }
 }
 
 void ConstraintIncrease::print()
 {
-    for(int i = 0; i < direction.size(); i++) {
-        int index = direction[i].index;
+    for(auto &dir : direction) {
+        int index = dir.index;
     }
 }
 
@@ -44,8 +39,7 @@ void ConstraintIncrease::onAdded(Sudoku *sudoku, int index)
 {
     int above = 0;
     int bellow = 0;
-    for(int i = 0; i < direction.size(); i++) {
-        auto &item = direction[i];
+    for(auto &item : direction) {
         if(item.diff < 0) bellow++;
         if(item.diff > 0) above++;
     }
@@ -56,8 +50,7 @@ void ConstraintIncrease::onAdded(Sudoku *sudoku, int index)
 SudokuResult ConstraintIncrease::onCollapsed(Sudoku *sudoku, int index, int value, SudokuNote note)
 {
     SudokuResult fresult = SudokuResultUnchanged;
-    for(int i = 0; i < direction.size(); i++) {
-        auto &item = direction[i];
+    for(auto &item : direction) {
         int oldValue = sudoku->note[item.index];
         if(oldValue & SudokuNoteOk) continue;
 

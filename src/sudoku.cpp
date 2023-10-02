@@ -1,12 +1,5 @@
 #include "sudoku.hpp"
 
-#include <stdio.h>
-#include <string.h>
-
-#include "list.tcc"
-
-template class List<Sudoku*>;
-
 namespace {
 
 int remaining[512] {
@@ -36,7 +29,7 @@ Sudoku::Sudoku(int dim)
     this->size = dim * dim;
     isDuplicate = false;
     ignored = new bool[size];
-    constraints = new List<Constraint*>[size];
+    constraints = new std::vector<Constraint*>[size];
     note = new SudokuNote[size];
     for(int i = 0; i < size; i++) {
         note[i] = SudokuNoteAll;
@@ -52,12 +45,12 @@ Sudoku::Sudoku(Sudoku *src)
     isDuplicate = true;
     constraints = src->constraints;
     note = new SudokuNote[size];
-    memcpy(note, src->note, size * sizeof(SudokuNote));
+    std::copy(src->note, src->note + size, note);
 
 #ifdef HAS_HISTORY
-    history.ensureCapacity(src->history.size());
-    for(int i = 0; i < src->history.size(); i++) {
-        history.push(src->history[i]);
+    history.resize(src->history.size());
+    for(auto &hist : src->history) {
+        history.push_back(hist);
     }
 #endif
 }
@@ -66,6 +59,7 @@ Sudoku::~Sudoku()
 {
     delete[] note;
     if(!isDuplicate) {
+        delete[] ignored;
         delete[] constraints;
     }
 }
@@ -125,34 +119,23 @@ void Sudoku::fixNote()
     }
 }
 
-bool Sudoku::read(FILE *file)
+bool operator>>(std::istream &src, Sudoku &dst)
 {
     int index = 0;
-    while(!feof(file) && index < getSize()) {
-        char c = fgetc(file);
+    char c;
+    while(src.good() && index < dst.getSize()) {
+        src >> c;
         if(c >= '1' && c <= '9') {
-            setFixed(index, c - '1');
+            dst.setFixed(index, c - '1');
             index++;
         } else if(c == '@') {
-            ignore(index);
+            dst.ignore(index);
             index++;
         } else if(c == '.') {
             index++;
         }
     }
-    return index == getSize();
-}
-
-bool Sudoku::read(const char *path)
-{
-    FILE *file = fopen(path, "rb");
-    if(file == nullptr) {
-        printf("File '%s' not found\n", path);
-        return false;
-    }
-    bool result = read(file);
-    fclose(file);
-    return result;
+    return index == dst.getSize();
 }
 
 SudokuResult Sudoku::collapse(int index, int value)
@@ -162,13 +145,13 @@ SudokuResult Sudoku::collapse(int index, int value)
     note[index] = noteValue | SudokuNoteOk;
 #ifdef HAS_HISTORY
     CollapseHistory collapseHistory = {index, value};
-    history.push(collapseHistory);
+    history.push_back(collapseHistory);
 #endif
 
-    List<Constraint*> &Constraint = constraints[index];
+    std::vector<Constraint*> &constraint = constraints[index];
     SudokuResult result = SudokuResultUnchanged;
-    for (int i = 0; i < Constraint.size(); i++) {
-        switch(Constraint[i]->onCollapsed(this, index, value, noteValue)) {
+    for (auto &constr : constraint) {
+        switch(constr->onCollapsed(this, index, value, noteValue)) {
             case SudokuResultOk: result = SudokuResultOk; break;
             case SudokuResultUnchanged: break;
             case SudokuResultError: return SudokuResultError;
@@ -179,15 +162,15 @@ SudokuResult Sudoku::collapse(int index, int value)
 
 void Sudoku::addConstraint(int index, Sudoku::Constraint *eventListener)
 {
-    List<Constraint*> &Constraint = constraints[index];
-    for (int i = 0; i < Constraint.size(); i++) {
-        if(Constraint[i] == eventListener) return;
+    std::vector<Constraint*> &constraint = constraints[index];
+    for (auto &constr : constraint) {
+        if(constr == eventListener) return;
     }
-    Constraint.push(eventListener);
+    constraint.push_back(eventListener);
     eventListener->onAdded(this, index);
 }
 
-int Sudoku::countSolution(Sudoku *src, int limit)
+int Sudoku::countSolution(Sudoku *src, std::size_t limit)
 {
 repeat:
     int minRem = 10;
@@ -216,7 +199,7 @@ repeat:
     if(minIndex == -1) {
         return 1;
     }
-    int resultCount = 0;
+    std::size_t resultCount = 0;
     int note = src->note[minIndex];
     int value = 0;
     while(note != 0 && resultCount < limit) {
@@ -236,7 +219,7 @@ repeat:
     return resultCount;
 }
 
-void Sudoku::solve(Sudoku *src, List<Sudoku*> &dst, int limit)
+void Sudoku::solve(Sudoku *src, std::vector<Sudoku*> &dst, std::size_t limit)
 {
 repeat:
     int minRem = 10;
@@ -264,7 +247,7 @@ repeat:
         }
     }
     if(minIndex == -1) {
-        dst.push(new Sudoku(src));
+        dst.push_back(new Sudoku(src));
         return;
     }
     int note = src->note[minIndex];
@@ -289,36 +272,37 @@ repeat:
  * Special solution is solution that become solveable after fixing one more box.
  * The box that need to be fixed are highlighted in grey.
 */
-void Sudoku::printSpecialSolution(List<Sudoku*> &solutions)
+void Sudoku::printSpecialSolution(std::vector<Sudoku*> &solutions, std::ostream &out)
 {
-    int count[81][9];
-    Sudoku *unique[81][9];
-    for(int i = 0; i < 81; i++) {
-        memset(count[i], 0, sizeof(*count));
-        memset(unique[i], 1, sizeof(*unique));
+    int size = solutions[0]->size;
+    int count[size][9];
+    Sudoku *unique[size][9];
+    for(int i = 0; i < size; i++) {
+        std::fill(count[i], count[i] + 9, 0);
+        std::fill(unique[i], unique[i] + 9, nullptr);
     }
-    for(int i = 0; i < solutions.size(); i++) {
-        Sudoku *sudoku = solutions[i];
-        for(int j = 0; j < 81; j++) {
+    for(auto sudoku : solutions) {
+        for(int j = 0; j < size; j++) {
             int value = Sudoku::note2value(sudoku->note[j]);
             count[j][value]++;
             unique[j][value] = sudoku;
         }
     }
     int resultCount = 0;
-    for(int i = 0; i < 81; i++) {
+    for(int i = 0; i < size; i++) {
         for(int j = 0; j < 9; j++) {
             if(count[i][j] == 1) {
-                unique[i][j]->print(nullptr, i);
-                printf("-------------------\n");
+                auto sudoku = unique[i][j];
+                sudoku->print(out, nullptr, i);
+                out << sudoku->bar();
                 resultCount++;
             }
         }
     }
-    printf("%d special solution found\n", resultCount);
+    out << resultCount << " special solution found\n";
 }
 
-void Sudoku::print(const char *fixedNoteFormat, int marked)
+void Sudoku::print(std::ostream &out, const char *fixedNoteFormat, int marked)
 {
     for(int y = 0, i = 0; y < dim; y++) {
         for(int x = 0; x < dim; x++, i++) {
@@ -327,36 +311,47 @@ void Sudoku::print(const char *fixedNoteFormat, int marked)
             if(v & SudokuNoteFixed){
 				// highlight fixed note
                 if(fixedNoteFormat != nullptr) {
-                    printf(fixedNoteFormat, valueChar);
+                    char *str;
+                    asprintf(&str, fixedNoteFormat, valueChar);
+                    out << str;
+                    free(str);
                 } else {
-                    printf("%c", valueChar);
+                    out << valueChar;
                 }
 			}else{
 				if(i == marked){
-					printf("\e[48;5;241m%c\e[m", valueChar);
+                    out << "\e[48;5;241m" << valueChar << "\e[m";
 				}else{
-					putchar(valueChar);
+                    out << valueChar;
 				}
             }
-            if(x < dim - 1) putchar(' ');
-            if(x % 3 == 2 && x < dim - 1) putchar(' ');
+            if(x < dim - 1) out << ' ';
+            if(x % 3 == 2 && x < dim - 1) out << ' ';
         }
-        putchar('\n');
-        if(y % 3 == 2 && y < dim - 1) putchar('\n');
+        out << '\n';
+        if(y % 3 == 2 && y < dim - 1) out << '\n';
     }
 }
 
-void Sudoku::printRemaining()
+void Sudoku::printRemaining(std::ostream &out)
 {
     for(int y = 0, i = 0; y < dim; y++) {
         for(int x = 0; x < dim; x++, i++) {
-            putchar('0' + noteGetRemaining(note[i]));
-            if(x < 8) putchar(' ');
-            if(x % 3 == 2 && x < 8) putchar(' ');
+            out << '0' + noteGetRemaining(note[i]);
+            if(x < 8) out << ' ';
+            if(x % 3 == 2 && x < 8) out << ' ';
         }
-        putchar('\n');
-        if(y % 3 == 2 && y < 8) putchar('\n');
+        out << '\n';
+        if(y % 3 == 2 && y < 8) out << '\n';
     }
+}
+
+std::string Sudoku::bar()
+{
+    std::string result;
+    result.append(dim * 2 + dim / 3 - 2, '-');
+    result.append(1, '\n');
+    return result;
 }
 
 int Sudoku::note2value(SudokuNote note)
@@ -402,13 +397,13 @@ int Sudoku::noteGetRemaining(SudokuNote note)
     return remaining[note];
 }
 
-void Sudoku::printAvailable(SudokuNote note)
+void Sudoku::printAvailable(SudokuNote note, std::ostream &out)
 {
     int bits = note & SudokuNoteAll;
     int value = 1;
     while(bits > 0) {
         if(bits & 1) {
-            printf("%d", value);
+            out << value;
         }
         value++;
         bits >>= 1;
@@ -422,8 +417,8 @@ void Sudoku::Constraint::onAdded(Sudoku *sudoku, int index)
 #ifdef HAS_HISTORY
 void Sudoku::printHistory()
 {
-    for(int i = 0; i < history.size(); i++) {
-        printf("%d => %d\n", history[i].index, history[i].value);
+    for(auto &hist : history) {
+        printf("%d => %d\n", hist.index, hist.value);
     }
 }
 #endif
