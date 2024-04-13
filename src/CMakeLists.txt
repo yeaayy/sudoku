@@ -1,7 +1,4 @@
 
-set(MAIN "main.cpp" CACHE FILEPATH "File that contain main function")
-option(HAS_HISTORY "Record change history" OFF)
-
 add_library(sudoku_base STATIC
     constraint_increase.cpp
     constraint_no_duplicate.cpp
@@ -14,9 +11,5 @@ add_library(sudoku_base STATIC
 if(HAS_HISTORY)
     target_compile_definitions(sudoku_base PRIVATE HAS_HISTORY)
 endif()
-
-add_executable(sudoku
-    ${MAIN}
-)
 
 target_link_libraries(sudoku PUBLIC sudoku_base)
